@@ -12,22 +12,22 @@ class ResJson {
 exports.ResJson = ResJson;
 function getErrorMessage(message) {
     let errMsg;
-    if (typeof message === "object") {
-        if (message.details !== undefined && typeof message.details === "string") {
+    if (typeof message === 'object') {
+        if (message.details !== undefined && typeof message.details === 'string') {
             errMsg = message.details;
         }
-        else if (message.message !== undefined && typeof message.message === "string") {
+        else if (message.message !== undefined && typeof message.message === 'string') {
             errMsg = message.message;
         }
         else {
-            errMsg = "未知错误";
+            errMsg = '未知错误';
         }
     }
-    else if (typeof message === "string") {
+    else if (typeof message === 'string') {
         errMsg = message;
     }
     else {
-        errMsg = "未知错误";
+        errMsg = '未知错误';
     }
     return errMsg;
 }
@@ -37,7 +37,7 @@ class ResError {
         let errMsg = getErrorMessage(message);
         this.code = code;
         this.data = data;
-        this.message = errMsg;
+        this.message = errMsg || '未知错误';
     }
 }
 exports.ResError = ResError;
