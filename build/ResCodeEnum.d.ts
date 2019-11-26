@@ -1,0 +1,11 @@
+export declare enum ResCodeEnum {
+    CORRECT = 0,
+    GENERAL_ERROR = 1,
+    CUSTOM_ERROR = 2,
+    MIDDLEWARE_ERROR = 5,
+    INTERFACE_CALL_ERROR = 6,
+    CONTROLLER_CALL_ERR = 7,
+    LOGIN_OUT = 401,
+    NO_PERMISSION = 403,
+    REQUEST_TIMEOUT = 504
+}
