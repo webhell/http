@@ -2,6 +2,7 @@ import { ResCodeEnum } from "./ResCodeEnum";
 import { ResJson, ResError } from "./ResClass";
 import axios, { AxiosInstance } from 'axios';
 import * as qs from 'querystring';
+import { FetchStatus, FetchType, createModelSimple, createModelList, fetchPromiseSimple, fetchPromiseList } from "./dataModel";
 
 const http: AxiosInstance = axios.create({
     timeout: 6000
@@ -33,6 +34,13 @@ export {
     ResJson,
     ResError,
     axios,
+    qs,
+    FetchStatus,
+    FetchType,
+    createModelSimple,
+    createModelList,
+    fetchPromiseSimple,
+    fetchPromiseList,
 }
 
 export default http;

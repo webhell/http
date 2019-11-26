@@ -8,6 +8,14 @@ exports.ResError = ResClass_1.ResError;
 const axios_1 = require("axios");
 exports.axios = axios_1.default;
 const qs = require("querystring");
+exports.qs = qs;
+const dataModel_1 = require("./dataModel");
+exports.FetchStatus = dataModel_1.FetchStatus;
+exports.FetchType = dataModel_1.FetchType;
+exports.createModelSimple = dataModel_1.createModelSimple;
+exports.createModelList = dataModel_1.createModelList;
+exports.fetchPromiseSimple = dataModel_1.fetchPromiseSimple;
+exports.fetchPromiseList = dataModel_1.fetchPromiseList;
 const http = axios_1.default.create({
     timeout: 6000
 });

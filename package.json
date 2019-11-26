@@ -1,12 +1,13 @@
 {
   "name": "@webhell/http",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "license": "MIT",
   "repository": "git@https://github.com/webhell/http.git",
   "author": "sai <hoosai@163.com>",
   "main": "build/index.js",
   "typings": "build/index.d.ts",
   "scripts": {
+    "dev": "tsc --watch",
     "start": "tsc --watch",
     "build": "npm run clean && npm run compile",
     "clean": "gts clean",
