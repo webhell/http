@@ -1,6 +1,6 @@
 {
   "name": "@webhell/http",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "license": "MIT",
   "repository": "git@https://github.com/webhell/http.git",
   "author": "sai <hoosai@163.com>",
@@ -14,7 +14,8 @@
     "prepublish": "npm run build"
   },
   "dependencies": {
-    "axios": "^0.19.0"
+    "axios": "^0.19.0",
+    "querystring": "^0.2.0"
   },
   "devDependencies": {
     "@types/node": "^12.12.14",
