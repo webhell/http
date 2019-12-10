@@ -1,5 +1,25 @@
 import { ResError, ResCodeEnum } from ".";
 
+interface IModelSimple {
+    loading: boolean;
+    loadStatus: FetchStatus;
+    cancelToken?: any;
+    data?: any;
+    timestamp?: number;
+    __code?: any;
+};
+interface IModelList extends IModelSimple {
+    pageIndex: number;
+    pageSize: number;
+    total: number;
+};
+interface IConfig {
+    customData?: Boolean,
+    pageIndexKey?: string,
+    totalKey?: string,
+    dataKey?: string,
+};
+
 export enum FetchStatus {
     // 初始值
     INIT = -1,
@@ -12,8 +32,9 @@ export enum FetchStatus {
 };
 
 // 请求数据模型
-export function createModelSimple(options = {}) {
+export function createModelSimple(options = {}): IModelSimple {
     return {
+        loading: false,
         loadStatus: FetchStatus.INIT,
         cancelToken: null,
         data: {},
@@ -22,40 +43,12 @@ export function createModelSimple(options = {}) {
     }
 };
 
-export function createModelList(options = {}) {
+export function createModelList(options = {}): IModelList {
     return {
         pageIndex: 1,
         pageSize: 10,
         total: 0,
         ...createModelSimple(options)
-    }
-};
-
-function getTarget(vm: any, propertyName: string, preTarget = false) {
-    try {
-        const r = propertyName.split('.');
-        return (preTarget ? r.slice(0, -1) : r).reduce((pre, x) => x ? pre[x] : pre, vm);
-    } catch (e) {
-        console.error('get target error');
-        return vm;
-    }
-}
-// 设置数据
-function setData(vm: any, propertyName: string, value: any) {
-    try {
-        if (typeof vm.setData === 'function') {
-            const target = vm;
-            vm.setData(target, propertyName, value);
-        }
-        if (typeof vm.$set === 'function') {
-            const target = getTarget(vm, propertyName, true);
-            propertyName = propertyName.split('.').slice(-1)[0];
-            vm.$set(target, propertyName, value);
-        }
-        return true;
-    } catch (e) {
-        console.error(e);
-        return false;
     }
 };
 
@@ -66,31 +59,29 @@ export enum FetchType {
     REFRESH = 'refresh',
     // 分页更新数据--页码不变动
     UPDATE = 'update',
+    // 下拉刷新
+    PULLDOWN = 'pulldown',
+    // 上拉加载更多
+    PULLUP = 'pullup',
 }
 
-interface IConfig {
-    customData?: Boolean,
-    pageIndexKey?: string,
-    totalKey?: string,
-    dataKey?: string,
-}
 export function fetchPromiseSimple(
     fetchType: FetchType,
     promiseHandler: (scope: any, fetchType: FetchType) => Promise<any>,
-    vm: any,
-    propertyName: string,
+    useModel: () => [() => IModelSimple, (m: IModelSimple) => IModelSimple],
     config: IConfig = {}): Promise<any> {
+    const [getState, setState] = useModel();
     return new Promise((resolve, reject) => {
-        const target = getTarget(vm, propertyName);
-        const scope = createModelSimple(target);
+        const scope = createModelSimple(getState());
         if (scope.loadStatus === FetchStatus.LOADING) {
             // isCancel
-            if (scope.cancelToken && fetchType === FetchType.REFRESH) {
+            if (scope.cancelToken && (fetchType === FetchType.REFRESH || fetchType === FetchType.PULLDOWN)) {
                 (scope.cancelToken as any).exec('fetchMsg:cancelToken');
                 setTimeout(() => {
                     // next
-                    setData(vm, `${propertyName}.loadStatus`, FetchStatus.LOADING);
-                    resolve(promiseHandler({ ...scope, loadStatus: FetchStatus.LOADING }, fetchType));
+                    const state = { ...scope, loadStatus: FetchStatus.LOADING, loading: true };
+                    setState(state);
+                    resolve(promiseHandler(state, fetchType));
                     return;
                 }, 17);
                 return;
@@ -99,30 +90,36 @@ export function fetchPromiseSimple(
                 return;
             }
         }
-        setData(vm, `${propertyName}.loadStatus`, FetchStatus.LOADING);
-        resolve(promiseHandler({ ...scope, loadStatus: FetchStatus.LOADING }, fetchType));
+        const state = { ...scope, loadStatus: FetchStatus.LOADING, loading: true };
+        setState(state)
+        resolve(promiseHandler(state, fetchType));
     }).then((res: any) => {
         console.log(`simple fetch ==> `, res);
-        let temp: any = {
+        const { customData } = config;
+        let state = {
+            ...getState(),
             loadStatus: FetchStatus.SUCCESS,
+            loading: false,
             cancelToken: null,
             timestamp: Date.now()
         };
-        const { customData } = config;
         if (!customData) {
-            temp.data = res.data;
+            state.data = res.data;
         }
-        setData(vm, propertyName, Object.assign(getTarget(vm, propertyName), temp));
+        setState(state);
         return res;
     }).catch(err => {
         if (/^fetchMsg:/.test(err.message)) {
             // 如果是以下错误的话不需修改状态 fetcheMsg:(isLastPage|cancelToken|loading)
         } else {
-            setData(vm, propertyName, Object.assign(getTarget(vm, propertyName), {
+            const state = {
+                ...getState(),
                 cancelToken: null,
                 loadStatus: FetchStatus.GENERAL_ERROR,
+                loading: false,
                 __code: err.code
-            }))
+            };
+            setState(state);
         }
     })
 }
@@ -130,32 +127,30 @@ export function fetchPromiseSimple(
 export function fetchPromiseList(
     fetchType: FetchType,
     promiseHandler: (scope: any, fetchType: FetchType) => Promise<any>,
-    vm: any,
-    propertyName: string,
+    useModel: () => [() => IModelList, (m: IModelList) => IModelList],
     config: IConfig = {}): Promise<any> {
+    const [getState, setState] = useModel();
     return new Promise((resolve, reject) => {
-        const target = getTarget(vm, propertyName);
-        const scope = createModelList(target);
-        if (fetchType === FetchType.UPDATE) {
+        const scope = createModelList(getState());
+        if (fetchType === FetchType.UPDATE || fetchType === FetchType.PULLUP) {
             if (scope.total <= (scope.pageIndex - 1) * scope.pageSize) {
                 reject(new ResError(ResCodeEnum.CUSTOM_ERROR, 'fetcheMsg:isLastPage'));
                 return;
             }
         } else {
             // 重置页数
-            Object.assign(scope, {
-                pageIndex: 1,
-                // total: 0
-            });
+            scope.pageIndex = 1;
+            // scope.total = 0;
         }
         if (scope.loadStatus === FetchStatus.LOADING) {
             // isCancel
-            if (scope.cancelToken && fetchType === FetchType.REFRESH) {
+            if (scope.cancelToken && (fetchType === FetchType.REFRESH || fetchType === FetchType.PULLDOWN)) {
                 (scope.cancelToken as any).exec('fetchMsg:cancelToken');
                 setTimeout(() => {
                     // next
-                    setData(vm, `${propertyName}.loadStatus`, FetchStatus.LOADING);
-                    resolve(promiseHandler({ ...scope, loadStatus: FetchStatus.LOADING }, fetchType));
+                    const state = { ...scope, loadStatus: FetchStatus.LOADING, loading: true };
+                    setState(state);
+                    resolve(promiseHandler(state, fetchType));
                     return;
                 }, 17);
                 return;
@@ -164,17 +159,20 @@ export function fetchPromiseList(
                 return;
             }
         }
-        setData(vm, `${propertyName}.loadStatus`, FetchStatus.LOADING);
-        resolve(promiseHandler({ ...scope, loadStatus: FetchStatus.LOADING }, fetchType));
+        const state = { ...scope, loadStatus: FetchStatus.LOADING, loading: true };
+        setState(state);
+        resolve(promiseHandler(state, fetchType));
     }).then((res: any) => {
         console.log(`list fetch ==> `, res);
         const { customData, pageIndexKey = 'pageIndex', totalKey = 'total', dataKey } = config;
-        let temp: any = {
+        let state = {
+            ...getState(),
             loadStatus: FetchStatus.SUCCESS,
+            loading: false,
             cancelToken: null,
             timestamp: Date.now(),
             pageIndex: res.data[pageIndexKey],
-            total: res.data[totalKey],
+            total: res.data[totalKey]
         };
         if (!customData) {
             let list = [];
@@ -185,19 +183,22 @@ export function fetchPromiseList(
             } else if (typeof res.data.list === 'object') {
                 list = res.data.list;
             }
-            temp.data = list || [];
+            state.data = (fetchType === FetchType.PULLUP ? state.data : []).concat(list || []);
         }
-        setData(vm, propertyName, Object.assign(getTarget(vm, propertyName), temp));
+        setState(state);
         return res;
     }).catch(err => {
         if (/^fetchMsg:/.test(err.message)) {
             // 如果是以下错误的话不需修改状态 fetcheMsg:(isLastPage|cancelToken|loading)
         } else {
-            setData(vm, propertyName, Object.assign(getTarget(vm, propertyName), {
+            const state = {
+                ...getState(),
                 cancelToken: null,
                 loadStatus: FetchStatus.GENERAL_ERROR,
+                loading: false,
                 __code: err.code
-            }))
+            };
+            setState(state);
         }
     })
 }
