@@ -1,4 +1,4 @@
-interface IModel {
+export interface IModel {
     loading: boolean;
     loadStatus: FetchStatus;
     cancelToken?: any;

@@ -1,6 +1,6 @@
 import { ResError, ResCodeEnum } from ".";
 
-interface IModel {
+export interface IModel {
     loading: boolean;
     loadStatus: FetchStatus;
     cancelToken?: any;
