@@ -12,10 +12,8 @@ exports.qs = qs;
 const dataModel_1 = require("./dataModel");
 exports.FetchStatus = dataModel_1.FetchStatus;
 exports.FetchType = dataModel_1.FetchType;
-exports.createModelSimple = dataModel_1.createModelSimple;
-exports.createModelList = dataModel_1.createModelList;
-exports.fetchPromiseSimple = dataModel_1.fetchPromiseSimple;
-exports.fetchPromiseList = dataModel_1.fetchPromiseList;
+exports.createModel = dataModel_1.createModel;
+exports.fetchPromise = dataModel_1.fetchPromise;
 const http = axios_1.default.create({
     timeout: 6000
 });

@@ -3,7 +3,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const _1 = require(".");
 ;
 ;
-;
 var FetchStatus;
 (function (FetchStatus) {
     // 初始值
@@ -17,15 +16,23 @@ var FetchStatus;
 })(FetchStatus = exports.FetchStatus || (exports.FetchStatus = {}));
 ;
 // 请求数据模型
-function createModelSimple(options = {}) {
-    return Object.assign({ loading: false, loadStatus: FetchStatus.INIT, cancelToken: null, data: {}, timestamp: 0 }, options);
+function createModel(options = {}, paging = false) {
+    const md = {
+        loading: false,
+        loadStatus: FetchStatus.INIT,
+        cancelToken: null,
+        data: {},
+        timestamp: 0,
+    };
+    const page = {
+        data: [],
+        pageIndex: 1,
+        pageSize: 10,
+        total: 0,
+    };
+    return Object.assign(Object.assign(Object.assign({}, md), (paging ? page : {})), options);
 }
-exports.createModelSimple = createModelSimple;
-;
-function createModelList(options = {}) {
-    return Object.assign({ pageIndex: 1, pageSize: 10, total: 0 }, createModelSimple(options));
-}
-exports.createModelList = createModelList;
+exports.createModel = createModel;
 ;
 var FetchType;
 (function (FetchType) {
@@ -40,19 +47,35 @@ var FetchType;
     // 上拉加载更多
     FetchType["PULLUP"] = "pullup";
 })(FetchType = exports.FetchType || (exports.FetchType = {}));
-function fetchPromiseSimple(fetchType, promiseHandler, useModel, config = {}) {
+function fetchPromise(fetchType, promiseHandler, useModel, config = {}) {
     const [getState, setState] = useModel();
+    const { pageIndex, pageSize } = getState();
+    const paging = !!config.paging || [pageIndex, pageSize].every(val => val !== undefined);
     return new Promise((resolve, reject) => {
-        const scope = createModelSimple(getState());
+        let scope = createModel(getState(), paging);
+        if (paging) {
+            if (fetchType === FetchType.UPDATE || fetchType === FetchType.PULLUP) {
+                const { total, pageIndex, pageSize } = scope;
+                if (total <= (pageIndex - 1) * pageSize) {
+                    reject(new _1.ResError(_1.ResCodeEnum.CUSTOM_ERROR, 'fetcheMsg:isLastPage'));
+                    return;
+                }
+            }
+            else {
+                // 重置页数
+                scope.pageIndex = 1;
+                // scope.total = 0;
+            }
+        }
         if (scope.loadStatus === FetchStatus.LOADING) {
             // isCancel
             if (scope.cancelToken && (fetchType === FetchType.REFRESH || fetchType === FetchType.PULLDOWN)) {
                 scope.cancelToken.exec('fetchMsg:cancelToken');
                 setTimeout(() => {
                     // next
-                    const state = Object.assign(Object.assign({}, scope), { loadStatus: FetchStatus.LOADING, loading: true });
-                    setState(state);
-                    resolve(promiseHandler(state, fetchType));
+                    scope = Object.assign(Object.assign({}, scope), { loadStatus: FetchStatus.LOADING, loading: true });
+                    setState(scope);
+                    resolve(promiseHandler(scope, fetchType));
                     return;
                 }, 17);
                 return;
@@ -62,92 +85,44 @@ function fetchPromiseSimple(fetchType, promiseHandler, useModel, config = {}) {
                 return;
             }
         }
-        const state = Object.assign(Object.assign({}, scope), { loadStatus: FetchStatus.LOADING, loading: true });
-        setState(state);
-        resolve(promiseHandler(state, fetchType));
+        scope = Object.assign(Object.assign({}, scope), { loadStatus: FetchStatus.LOADING, loading: true });
+        setState(scope);
+        resolve(promiseHandler(scope, fetchType));
     }).then((res) => {
-        console.log(`simple fetch ==> `, res);
-        const { customData } = config;
-        let state = Object.assign(Object.assign({}, getState()), { loadStatus: FetchStatus.SUCCESS, loading: false, cancelToken: null, timestamp: Date.now() });
-        if (!customData) {
-            state.data = res.data;
-        }
-        setState(state);
-        return res;
-    }).catch(err => {
-        if (/^fetchMsg:/.test(err.message)) {
-            // 如果是以下错误的话不需修改状态 fetcheMsg:(isLastPage|cancelToken|loading)
-        }
-        else {
-            const state = Object.assign(Object.assign({}, getState()), { cancelToken: null, loadStatus: FetchStatus.GENERAL_ERROR, loading: false, __code: err.code });
-            setState(state);
-        }
-    });
-}
-exports.fetchPromiseSimple = fetchPromiseSimple;
-function fetchPromiseList(fetchType, promiseHandler, useModel, config = {}) {
-    const [getState, setState] = useModel();
-    return new Promise((resolve, reject) => {
-        const scope = createModelList(getState());
-        if (fetchType === FetchType.UPDATE || fetchType === FetchType.PULLUP) {
-            if (scope.total <= (scope.pageIndex - 1) * scope.pageSize) {
-                reject(new _1.ResError(_1.ResCodeEnum.CUSTOM_ERROR, 'fetcheMsg:isLastPage'));
-                return;
-            }
-        }
-        else {
-            // 重置页数
-            scope.pageIndex = 1;
-            // scope.total = 0;
-        }
-        if (scope.loadStatus === FetchStatus.LOADING) {
-            // isCancel
-            if (scope.cancelToken && (fetchType === FetchType.REFRESH || fetchType === FetchType.PULLDOWN)) {
-                scope.cancelToken.exec('fetchMsg:cancelToken');
-                setTimeout(() => {
-                    // next
-                    const state = Object.assign(Object.assign({}, scope), { loadStatus: FetchStatus.LOADING, loading: true });
-                    setState(state);
-                    resolve(promiseHandler(state, fetchType));
-                    return;
-                }, 17);
-                return;
-            }
-            else {
-                reject(new _1.ResError(_1.ResCodeEnum.CUSTOM_ERROR, 'fetchMsg:loading'));
-                return;
-            }
-        }
-        const state = Object.assign(Object.assign({}, scope), { loadStatus: FetchStatus.LOADING, loading: true });
-        setState(state);
-        resolve(promiseHandler(state, fetchType));
-    }).then((res) => {
-        console.log(`list fetch ==> `, res);
+        console.log(`promiseFetch ==> `, res);
         const { customData, pageIndexKey = 'pageIndex', totalKey = 'total', dataKey } = config;
-        let state = Object.assign(Object.assign({}, getState()), { loadStatus: FetchStatus.SUCCESS, loading: false, cancelToken: null, timestamp: Date.now(), pageIndex: res.data[pageIndexKey], total: res.data[totalKey] });
-        if (!customData) {
-            let list = [];
-            if (dataKey) {
-                list = res.data[dataKey];
+        let scope = Object.assign(Object.assign({}, getState()), { loadStatus: FetchStatus.SUCCESS, loading: false, cancelToken: null, timestamp: Date.now() });
+        if (paging) {
+            scope = Object.assign(Object.assign({}, scope), { pageIndex: res.data[pageIndexKey], total: res.data[totalKey] });
+            if (!customData) {
+                let list = [];
+                if (dataKey) {
+                    list = res.data[dataKey];
+                }
+                else if (typeof res.data.data === 'object') {
+                    list = res.data.data;
+                }
+                else if (typeof res.data.list === 'object') {
+                    list = res.data.list;
+                }
+                scope.data = (fetchType === FetchType.PULLUP ? scope.data : []).concat(list || []);
             }
-            else if (typeof res.data.data === 'object') {
-                list = res.data.data;
-            }
-            else if (typeof res.data.list === 'object') {
-                list = res.data.list;
-            }
-            state.data = (fetchType === FetchType.PULLUP ? state.data : []).concat(list || []);
         }
-        setState(state);
+        else {
+            if (!customData) {
+                scope = Object.assign(Object.assign({}, scope), { data: res.data });
+            }
+        }
+        setState(scope);
         return res;
     }).catch(err => {
         if (/^fetchMsg:/.test(err.message)) {
             // 如果是以下错误的话不需修改状态 fetcheMsg:(isLastPage|cancelToken|loading)
         }
         else {
-            const state = Object.assign(Object.assign({}, getState()), { cancelToken: null, loadStatus: FetchStatus.GENERAL_ERROR, loading: false, __code: err.code });
-            setState(state);
+            let scope = Object.assign(Object.assign({}, getState()), { cancelToken: null, loadStatus: FetchStatus.GENERAL_ERROR, loading: false, __code: err.code });
+            setState(scope);
         }
     });
 }
-exports.fetchPromiseList = fetchPromiseList;
+exports.fetchPromise = fetchPromise;
