@@ -5,7 +5,8 @@ import * as qs from 'querystring';
 import { FetchStatus, FetchType, createModel,fetchPromise, IModel } from "./dataModel";
 
 const http: AxiosInstance = axios.create({
-    timeout: 6000
+    timeout: 60000,
+    validateStatus: status => status === 200
 });
 
 http.interceptors.request.use(config => {
@@ -20,11 +21,7 @@ http.interceptors.request.use(config => {
 });
 
 http.interceptors.response.use(response => {
-    if (response.status === 200) {
-        return response.data;
-    } else {
-        return Promise.reject(new ResError(response.status, response.statusText, response.data));
-    }
+    return response;
 }, error => {
     return Promise.reject(new ResError(ResCodeEnum.MIDDLEWARE_ERROR, error))
 });
