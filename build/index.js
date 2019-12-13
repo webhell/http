@@ -15,7 +15,8 @@ exports.FetchType = dataModel_1.FetchType;
 exports.createModel = dataModel_1.createModel;
 exports.fetchPromise = dataModel_1.fetchPromise;
 const http = axios_1.default.create({
-    timeout: 6000
+    timeout: 60000,
+    validateStatus: status => status === 200
 });
 http.interceptors.request.use(config => {
     const method = (config.method || '').toLowerCase() || 'get';
@@ -28,12 +29,7 @@ http.interceptors.request.use(config => {
     return Promise.reject(new ResClass_1.ResError(ResCodeEnum_1.ResCodeEnum.MIDDLEWARE_ERROR, error));
 });
 http.interceptors.response.use(response => {
-    if (response.status === 200) {
-        return response.data;
-    }
-    else {
-        return Promise.reject(new ResClass_1.ResError(response.status, response.statusText, response.data));
-    }
+    return response;
 }, error => {
     return Promise.reject(new ResClass_1.ResError(ResCodeEnum_1.ResCodeEnum.MIDDLEWARE_ERROR, error));
 });
