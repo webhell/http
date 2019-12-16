@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const _1 = require(".");
+const ResClass_1 = require("./ResClass");
+const ResCodeEnum_1 = require("./ResCodeEnum");
 ;
 ;
 var FetchStatus;
@@ -57,7 +58,7 @@ function fetchPromise(fetchType, promiseHandler, useModel, config = {}) {
             if (fetchType === FetchType.UPDATE || fetchType === FetchType.PULLUP) {
                 const { total, pageIndex, pageSize } = scope;
                 if (total <= (pageIndex - 1) * pageSize) {
-                    reject(new _1.ResError(_1.ResCodeEnum.CUSTOM_ERROR, 'fetcheMsg:isLastPage'));
+                    reject(new ResClass_1.ResError(ResCodeEnum_1.ResCodeEnum.CUSTOM_ERROR, 'fetcheMsg:isLastPage'));
                     return;
                 }
             }
@@ -81,7 +82,7 @@ function fetchPromise(fetchType, promiseHandler, useModel, config = {}) {
                 return;
             }
             else {
-                reject(new _1.ResError(_1.ResCodeEnum.CUSTOM_ERROR, 'fetchMsg:loading'));
+                reject(new ResClass_1.ResError(ResCodeEnum_1.ResCodeEnum.CUSTOM_ERROR, 'fetchMsg:loading'));
                 return;
             }
         }

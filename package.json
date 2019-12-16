@@ -1,6 +1,6 @@
 {
   "name": "@webhell/http",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "license": "MIT",
   "repository": "git@https://github.com/webhell/http.git",
   "author": "sai <hoosai@163.com>",

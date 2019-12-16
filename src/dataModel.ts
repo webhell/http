@@ -1,4 +1,5 @@
-import { ResError, ResCodeEnum } from ".";
+import { ResError } from "./ResClass";
+import { ResCodeEnum } from "./ResCodeEnum";
 
 export interface IModel {
     loading: boolean;
